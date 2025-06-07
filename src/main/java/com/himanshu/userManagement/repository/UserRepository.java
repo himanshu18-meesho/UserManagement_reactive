@@ -2,6 +2,8 @@ package com.himanshu.userManagement.repository;
 
 
 import com.himanshu.userManagement.model.User;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.ReactiveValueOperations;
@@ -13,6 +15,8 @@ import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.IndexResponse;
 import co.elastic.clients.elasticsearch.core.GetResponse;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
+
+// IMof4zeLumwerS8Et=ju
 
 @Repository
 public class UserRepository {
@@ -27,32 +31,39 @@ public class UserRepository {
         this.valueOps = redisTemplate.opsForValue();
     }
     
-    public Mono<User> save(User user) {
-        double random = Math.random(); // Generates random number between 0.0 and 1.0
+    public Mono<User> save(User user, String storageLocation) {
+        // double random = Math.random(); // Generates random number between 0.0 and 1.0
 
-        return Mono.fromCallable(() -> {
-            IndexResponse response = client.index(i -> i.index("users").id(user.getId().toString()).document(user));
-            return response;
-        }).flatMap(response -> {
-            if (random > 0.5) {
-                return valueOps.set(user.getId().toString(), user)
-                    .map(success -> user);
-            }
-            return Mono.just(user);
-        });
+        // return Mono.fromCallable(() -> {
+        //     IndexResponse response = client.index(i -> i.index("users").id(user.getId().toString()).document(user));
+        //     return response;
+        // }).flatMap(response -> {
+        //     if (random > 0.5) {
+        //         return valueOps.set(user.getId().toString(), user)
+        //             .map(success -> user);
+        //     }
+        //     return Mono.just(user);
+        // });
+        if(storageLocation.equals("REDIS")){
+            return valueOps.set(user.getId().toString(), user)
+                .map(success -> user);
+        } else {
+            return Mono.fromCallable(() -> {
+                IndexResponse response = client.index(i -> i.index("users").id(user.getId().toString()).document(user));
+                return response;
+            }).flatMap(response -> Mono.just(user));
+        }
     }
     
-    public Mono<User> findById(Integer id) {
-        return valueOps.get(id.toString())
-                .switchIfEmpty(Mono.fromCallable(()->{
-                    GetResponse<User> response = client.get(g -> g.index("users").id(id.toString()), User.class);
-                    return response.source();
-                })).flatMap(user->{
-                    if(user != null){
-                        return valueOps.set(user.getId().toString(), user).thenReturn(user);
-                    }
-                    return Mono.empty();
-                });
+    public Mono<User> findById(Integer id, String storageLocation) {
+        if(storageLocation.equals("REDIS")){
+            return valueOps.get(id.toString())
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found in Redis")));
+        }
+        return Mono.fromCallable(() -> {
+            GetResponse<User> response = client.get(g -> g.index("users").id(id.toString()), User.class);
+            return response.source();
+        }).switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found in Elasticsearch")));
     }
     
     public Flux<User> findAll() {

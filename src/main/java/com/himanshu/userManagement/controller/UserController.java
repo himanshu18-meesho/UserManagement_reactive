@@ -26,8 +26,8 @@ public class UserController {
 
     @GetMapping
     public Flux<User> getUsers() {
-        // return Flux.just(new User(1, "John", "john@gmail.com", "password123"), new User(2, "Jane", "jane@gmail.com", "password123"));
-        return userService.findAllUsers();
+        return Flux.just(new User(1, "John", "john@gmail.com", "password123"), new User(2, "Jane", "jane@gmail.com", "password123"));
+        // return userService.findAllUsers();
         // return userService.findById(18);
     }
     @GetMapping("/{id}")
@@ -43,11 +43,13 @@ public class UserController {
     @DeleteMapping("/{id}")
     public Mono<Boolean> deleteUser(@PathVariable Integer id) {
         return userService.deleteUser(id);
+        // return Mono.just(true);
     }
 
     @PutMapping("/{id}")
     public Mono<User> updateUser(@PathVariable Integer id, @RequestBody User newUser) {    
         return userService.updateUser(id, newUser);
+        // return Mono.just(newUser);
     }
     
 }
